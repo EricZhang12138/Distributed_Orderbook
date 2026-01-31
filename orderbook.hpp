@@ -1,7 +1,7 @@
 #include <map>
 #include <cstdint>
 #include <chrono>
-
+#include <map>
 
 
 // forward declaration, Order needs Limit while Limit needs Order
@@ -52,8 +52,8 @@ private:
     int id_counter = 0; // this is the counter for the id of each order. It increments when 
     
     std::unordered_map<int64_t, Order*> global_map; //orderID -> Order* for efficient order cancelling, otherwise knowing orderID won't help you delete it
-    std::map<int64_t, Limit*> bids;  // price -> list of orders
-    std::map<int64_t, Limit*> asks;
+    std::map<int64_t, std::unique_ptr<Limit>> bids;  // price -> list of orders
+    std::map<int64_t, std::unique_ptr<Limit>> asks;
 
     orderResult match(int64_t price, int64_t volume, bool side, int64_t time, int64_t orderID); // for the asks or bids on the Limit queues directly
     //void pop(int64_t price, int64_t volumne, bool side); 
