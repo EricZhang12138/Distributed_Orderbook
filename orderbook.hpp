@@ -61,7 +61,6 @@ private:
 public:
     int64_t placeOrder(int64_t price, int64_t volume, bool side); // returns the id of the order
     void cancel(int64_t order_id);
-
 };
 
 

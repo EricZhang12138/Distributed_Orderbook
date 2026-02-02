@@ -182,13 +182,63 @@ orderResult Orderbook::match(int64_t price, int64_t volume, bool side, int64_t t
 }
 
 
-
-
 int64_t Orderbook::placeOrder(int64_t price, int64_t volume, bool side){
     // generate timestamp 
     int64_t c_time = getCurrentTime();
     // increment the id counter
     id_counter ++;
     int64_t orderID = id_counter;
-
+    orderResult res = match(price, volume, side, c_time, orderID);
+    return res.orderID;
 }
+
+
+// this handles situations where the order is at the head, tail, in the middle or even when there is only one order in the limit
+void Orderbook::cancel(int64_t orderID) {
+    // Check if ID exists first!
+    auto it = global_map.find(orderID);
+    if (it == global_map.end()) {
+        return; // Order not found, do nothing
+    }
+
+    Order* order = it->second;
+    Limit* parent_limit = order->parentlimit;
+    int64_t price = order -> price;
+
+    // If I have a previous neighbor
+    if (order->prev != nullptr) {
+        order->prev->next = order->next;
+    }
+    
+    // If I have a next neighbor
+    if (order->next != nullptr) {
+        order->next->prev = order->prev;
+    }
+
+    // update parentlimit 
+    if (parent_limit->head == order) {
+        parent_limit->head = order->next;
+    }
+    if (parent_limit->tail == order) {
+        parent_limit->tail = order->prev;
+    }
+
+    // update stats 
+    parent_limit->count--;
+    parent_limit->totalVolume -= order->volume;
+
+    global_map.erase(it); 
+    delete order; 
+
+    // prune empty limit
+    if (parent_limit->count == 0) {
+        
+        // True = Ask (Sell), False = Bid (Buy)
+        if (order->side == true) { 
+            asks.erase(price); 
+        } else {
+            bids.erase(price);
+        }
+    }
+}
+
