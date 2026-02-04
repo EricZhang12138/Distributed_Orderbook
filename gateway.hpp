@@ -6,10 +6,14 @@
 #include <thread>
 class gateway{ // a wrapper around the Orderbook object. It converts user facing ID (username + id) to internal orderbook id 
     std::unordered_map<std::string, int> id_map;
+    RingBuffer* ring_buffer; // we use a raw pointer instead of unique pointer because the gateway shouldn't own the ringbuffer, it is a shared resource
+    gateway(RingBuffer* buffer): ring_buffer(buffer){};
     
 };
 
 
+
+// currently the ring buffer does not 
 struct alignas(64) Orderevent{
     int64_t price = 0;
     bool side = true;
@@ -20,7 +24,7 @@ struct alignas(64) Orderevent{
     std::atomic<bool> is_ready{false};   // this needs to be atomic because the matching engine and the gateway may access it at the same time
 
 };
-
+// the ring buffer also works as a sequencer, multiple requests coming but they are sequenced when they come in the ring buffer
 struct RingBuffer{
     std::vector<Orderevent> buffer; // we use the actual Orderevent object here rather than pointers for cache friendliness
     int64_t size = 0;
