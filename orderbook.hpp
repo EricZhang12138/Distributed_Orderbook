@@ -1,3 +1,4 @@
+#pragma once
 #include <map>
 #include <cstdint>
 #include <chrono>
@@ -20,7 +21,6 @@ struct orderResult{
     int64_t remainingQty = 0;
     std::vector<Fill> trades;
 };
-
 
 // So normally if we use std::list<Order> what is happening is for every Order object it is wrapped by 
 // a node object but then if I implement my own management class Limit then I can have direct access
@@ -60,10 +60,8 @@ private:
 
 public:
     int64_t placeOrder(int64_t price, int64_t volume, bool side); // returns the id of the order
-    void cancel(int64_t order_id);
+    bool cancel(int64_t order_id);
 };
 
 
-class gateway{ // a wrapper around the Orderbook object. It converts user facing ID (username + id) to internal orderbook id 
 
-};

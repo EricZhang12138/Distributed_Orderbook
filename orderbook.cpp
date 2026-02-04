@@ -11,8 +11,6 @@ int64_t getCurrentTime() {
 }
 
 
-
-
 orderResult Orderbook::match(int64_t price, int64_t volume, bool side, int64_t time, int64_t orderID){ // it also takes in the time when the order is placed. We don't want to calculate the time multiple times for different Fills in the same ask/bid because it slows down the system
     if (side == true){ // we add to asks map, meaning we want to sell
         // we first check whether there is matching price in the bids map
@@ -194,11 +192,11 @@ int64_t Orderbook::placeOrder(int64_t price, int64_t volume, bool side){
 
 
 // this handles situations where the order is at the head, tail, in the middle or even when there is only one order in the limit
-void Orderbook::cancel(int64_t orderID) {
+bool Orderbook::cancel(int64_t orderID){
     // Check if ID exists first!
     auto it = global_map.find(orderID);
     if (it == global_map.end()) {
-        return; // Order not found, do nothing
+        return false; // please enter a valid orderID
     }
 
     Order* order = it->second;
@@ -240,5 +238,6 @@ void Orderbook::cancel(int64_t orderID) {
             bids.erase(price);
         }
     }
+    return true; // it is a valid orderID and we have gone through all procedures 
 }
 
