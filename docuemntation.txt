@@ -1,0 +1,3 @@
+  1. Gateway arrival — captured in Orderevent::timestamp when gateway writes to ring buffer                                                                                     
+  2. Engine pickup — when the matching engine dequeues the event from the ring buffer -> not using this one because it is pretty much useless
+  3. Execution — when the match actually happens, captured in Fill::timestamp   

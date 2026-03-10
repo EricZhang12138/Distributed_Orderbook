@@ -94,7 +94,6 @@ orderResult Orderbook::match(int64_t price, int64_t volume, bool side, int64_t t
             res.fulfilled = true;
             return res;
         }
-    
     }else{ // we add to bids map, meaning we want to buy
         orderResult res = {
             .orderID = orderID,
@@ -180,16 +179,6 @@ orderResult Orderbook::match(int64_t price, int64_t volume, bool side, int64_t t
 }
 
 
-int64_t Orderbook::placeOrder(int64_t price, int64_t volume, bool side){
-    // generate timestamp 
-    int64_t c_time = getCurrentTime();
-    // increment the id counter
-    id_counter ++;
-    int64_t orderID = id_counter;
-    orderResult res = match(price, volume, side, c_time, orderID);
-    return res.orderID;
-}
-
 
 // this handles situations where the order is at the head, tail, in the middle or even when there is only one order in the limit
 bool Orderbook::cancel(int64_t orderID){
@@ -239,5 +228,12 @@ bool Orderbook::cancel(int64_t orderID){
         }
     }
     return true; // it is a valid orderID and we have gone through all procedures 
+}
+
+
+std::pair<orderResult,int64_t> Orderbook::placeOrder(int64_t price, int64_t volume, bool side, int64_t time, int64_t order_id, int64_t gateway_id){
+    orderResult res = match(price, volume, side, time, order_id);
+
+    return {res, gateway_id};
 }
 

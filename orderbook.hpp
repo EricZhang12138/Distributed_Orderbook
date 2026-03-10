@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <chrono>
 #include <map>
-
+#include <utility>
 
 // forward declaration, Order needs Limit while Limit needs Order
 struct Order; 
@@ -39,7 +39,8 @@ struct Order{
     int64_t volume = 0;
     int64_t orderID = 0;
     bool side = true; // indicates the direction of the trade: true -> sell    false -> buy
-    
+    int64_t order_arrival_time = 0;
+
     // doubly linked list
     Order* next = nullptr;
     Order* prev = nullptr; 
@@ -49,17 +50,14 @@ struct Order{
 
 class Orderbook{
 private:
-    int id_counter = 0; // this is the counter for the id of each order. It increments when 
-    
     std::unordered_map<int64_t, Order*> global_map; //orderID -> Order* for efficient order cancelling, otherwise knowing orderID won't help you delete it
     std::map<int64_t, std::unique_ptr<Limit>> bids;  // price -> list of orders
     std::map<int64_t, std::unique_ptr<Limit>> asks;
-
     orderResult match(int64_t price, int64_t volume, bool side, int64_t time, int64_t orderID); // for the asks or bids on the Limit queues directly
     //void pop(int64_t price, int64_t volumne, bool side); 
 
 public:
-    int64_t placeOrder(int64_t price, int64_t volume, bool side); // returns the id of the order
+    std::pair<orderResult,int64_t> placeOrder(int64_t price, int64_t volume, bool side, int64_t time, int64_t order_id, int64_t gateway_id); // returns the id of the order
     bool cancel(int64_t order_id);
 };
 
