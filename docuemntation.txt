@@ -1,3 +1,17 @@
   1. Gateway arrival — captured in Orderevent::timestamp when gateway writes to ring buffer                                                                                     
   2. Engine pickup — when the matching engine dequeues the event from the ring buffer -> not using this one because it is pretty much useless
   3. Execution — when the match actually happens, captured in Fill::timestamp   
+
+
+array and vector, where the elements go and where the object goes
+// Array on the stack
+int arr[100];
+
+// Array on the heap
+int* arr = new int[100];
+
+// Vector: object on stack, elements on heap
+std::vector<int> v(100);
+
+// Vector: everything on heap
+std::vector<int>* v = new std::vector<int>(100);

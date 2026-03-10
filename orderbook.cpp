@@ -233,7 +233,6 @@ bool Orderbook::cancel(int64_t orderID){
 
 std::pair<orderResult,int64_t> Orderbook::placeOrder(int64_t price, int64_t volume, bool side, int64_t time, int64_t order_id, int64_t gateway_id){
     orderResult res = match(price, volume, side, time, order_id);
-
     return {res, gateway_id};
 }
 

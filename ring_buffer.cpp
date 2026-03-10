@@ -19,3 +19,21 @@ void RingBuffer_inbound::publish(int64_t write_p){ // publish the orderevent, te
 void RingBuffer_inbound::release(int64_t write_p){ // matching engine has done all the work and reset the value to false
     buffer[write_p & mask].is_ready.store(false, std::memory_order_relaxed);
 }
+
+
+RingBuffer_outbound::RingBuffer_outbound(int64_t buffer_size): size(buffer_size), mask(buffer_size-1){
+    buffer.resize(size);
+}
+
+Orderevent_outbound* RingBuffer_outbound::get(int64_t write_p){
+    return &buffer[write_p & mask];
+}
+
+void RingBuffer_outbound::publish(int64_t write_p){
+    buffer[write_p & mask].is_ready.store(true, std::memory_order_release);
+    return;
+}
+
+void RingBuffer_outbound::release(int64_t write_p){
+    buffer[write_p & mask].is_ready.store(false, std::memory_order_relaxed);
+}

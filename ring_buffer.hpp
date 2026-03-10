@@ -4,7 +4,7 @@
 #include <atomic>
 #include <cstdint>
 #include <thread>
-
+#include "orderbook.hpp"
 
 // 64 bytes
 struct alignas(64) Orderevent_inbound{
@@ -32,6 +32,25 @@ struct RingBuffer_inbound{
     void release(int64_t write_p);
 };
 
-struct RingBuffer_outbound{
 
+
+
+struct alignas(64) Orderevent_outbound{                                                                                                                                                                     
+      int64_t order_id = 0;
+      int64_t gateway_id = 0;
+      bool fulfilled = false;
+      int64_t remaining_qty = 0;
+      Fill fills[16]; // 16 fills max each time
+      int64_t fill_count = 0;
+      std::atomic<bool> is_ready{false};
+  };
+
+struct RingBuffer_outbound{
+    std::vector<Orderevent_outbound> buffer;
+    int64_t size = 0;
+    int64_t mask = 0;
+    RingBuffer_outbound(int64_t buffer_size);
+    Orderevent_outbound* get(int64_t write_p);
+    void publish(int64_t write_p); // set is_ready = true for the user to pick up
+    void release(int64_t write_p);  // set is_ready = false to free up the space
 };
