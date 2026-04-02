@@ -37,3 +37,21 @@ void Gateway::place_order_to_ring_buffer(int64_t price, int64_t volume, bool sid
     // publish to notify that we are ready 
     ring_buffer_internal -> publish(write_pointer);
 }
+
+bool Gateway::read_from_ring_buffer(Fill* fills, int64_t& fill_count, int64_t& order_id, bool& fulfilled, int64_t& remaining_qty){
+    Orderevent_outbound* order = ring_buffer_outbound->get(outbound_ringbuffer_read_p);
+    if (order->is_ready.load(std::memory_order_acquire)){
+        for (int64_t i = 0; i < order->fill_count; i++) {                                                                                                                                    
+            fills[i] = order->fills[i];
+        }                                                                                                                                              
+        fill_count = order -> fill_count;
+        order_id = order -> order_id;
+        fulfilled = order -> fulfilled;
+        remaining_qty = order -> remaining_qty;
+        ring_buffer_outbound -> release(outbound_ringbuffer_read_p);
+        outbound_ringbuffer_read_p +=1;
+        return true;
+    }else{
+        return false;
+    }
+}
