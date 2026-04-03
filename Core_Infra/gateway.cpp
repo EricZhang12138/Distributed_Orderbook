@@ -20,7 +20,7 @@ int64_t getCurrentTime() {
     return std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
 }
 
-Gateway::Gateway(RingBuffer_inbound* buffer, int64_t id): ring_buffer_internal(buffer), gateway_id(id){};
+Gateway::Gateway(RingBuffer_inbound* buffer, RingBuffer_outbound* buffer_outbound,int64_t id): ring_buffer_internal(buffer), ring_buffer_outbound(buffer_outbound),gateway_id(id){};
 
 void Gateway::place_order_to_ring_buffer(int64_t price, int64_t volume, bool side, std::string username){
     // increment the count for internal_id_counter
