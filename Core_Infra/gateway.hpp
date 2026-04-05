@@ -9,8 +9,6 @@ class Gateway{ // a wrapper around the Orderbook object. It converts user facing
 private:
     int64_t gateway_id = 0;
     int64_t outbound_ringbuffer_read_p = 0; // used along with read_from_ring_buffer
-    std::mutex id_lock; // for id_map
-    std::unordered_map<std::string, int> id_map;
     RingBuffer_inbound* ring_buffer_internal; // we use a raw pointer instead of unique pointer because the gateway shouldn't own the ringbuffer, it is a shared resource
     RingBuffer_outbound* ring_buffer_outbound;
     std::atomic<int64_t> internal_id_counter = 0; 

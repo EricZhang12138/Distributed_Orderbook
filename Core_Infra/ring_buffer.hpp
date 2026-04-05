@@ -1,6 +1,6 @@
 #pragma once
 #include <unordered_map>
-#include <vector>
+#include <memory>
 #include <atomic>
 #include <cstdint>
 #include <thread>
@@ -19,7 +19,7 @@ struct alignas(64) Orderevent_inbound{
 };
 // the ring buffer also works as a sequencer, multiple requests coming but they are sequenced when they come in the ring buffer
 struct RingBuffer_inbound{
-    std::vector<Orderevent_inbound> buffer; // we use the actual Orderevent object here rather than pointers for cache friendliness
+    std::unique_ptr<Orderevent_inbound[]> buffer; // we use the actual Orderevent object here rather than pointers for cache friendliness
     int64_t size = 0;
     // since we are using the mask in place of modulo operation, the size of buffer has to be powers of 2
     int64_t mask = 0;
@@ -33,8 +33,6 @@ struct RingBuffer_inbound{
 };
 
 
-
-
 struct alignas(64) Orderevent_outbound{                                                                                                                                                                     
       int64_t order_id = 0;
       int64_t gateway_id = 0;
@@ -46,7 +44,7 @@ struct alignas(64) Orderevent_outbound{
   };
 
 struct RingBuffer_outbound{
-    std::vector<Orderevent_outbound> buffer;
+    std::unique_ptr<Orderevent_outbound[]> buffer;
     int64_t size = 0;
     int64_t mask = 0;
     RingBuffer_outbound(int64_t buffer_size);

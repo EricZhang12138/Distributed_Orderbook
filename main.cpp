@@ -46,7 +46,6 @@ int main() {
                 << " vol=" << fills[i].volume << "\n";
         }
     });
-
     for (auto& t : gateway_threads) t.join();
 }
 
