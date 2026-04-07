@@ -1,14 +1,5 @@
 #include "orderbook.hpp"
-
-// Returns current Wall Clock time in Nanoseconds
-int64_t getCurrentTime() {
-    // Get the current time point from the system wall clock
-    auto now = std::chrono::system_clock::now();    
-    // Convert to time since epoch (1970-01-01)
-    auto duration = now.time_since_epoch();   
-    // Cast to nanoseconds (returns an integer)
-    return std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
-}
+#include "gateway.hpp"
 
 
 orderResult Orderbook::match(int64_t price, int64_t volume, bool side, int64_t time, int64_t orderID){ // it also takes in the time when the order is placed. We don't want to calculate the time multiple times for different Fills in the same ask/bid because it slows down the system
@@ -215,13 +206,14 @@ bool Orderbook::cancel(int64_t orderID){
     parent_limit->totalVolume -= order->volume;
 
     global_map.erase(it); 
+    bool side = order -> side;
     delete order; 
 
     // prune empty limit
     if (parent_limit->count == 0) {
         
         // True = Ask (Sell), False = Bid (Buy)
-        if (order->side == true) { 
+        if (side == true) { 
             asks.erase(price); 
         } else {
             bids.erase(price);

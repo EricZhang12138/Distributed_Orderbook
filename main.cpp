@@ -26,16 +26,25 @@ int main() {
         gateways.push_back(std::make_unique<Gateway>(&inbound, outbounds[i].get(), i));
 
     std::thread engine_thread([&]{ engine.run(); });
+    engine_thread.detach();
 
     std::vector<std::thread> gateway_threads;
 
+
+
+    /*
+    bool read_from_ring_buffer(Fill* fills, int64_t& fill_count, int64_t& order_id, bool& fulfilled, int64_t& remaining_qty);
+    void place_order_to_ring_buffer(int64_t price,int64_t volume, bool side, std::string username);
+    */
     gateway_threads.emplace_back([&]{
         gateways[0]->place_order_to_ring_buffer(100, 10, true, "alice");
+        gateways[1]->place_order_to_ring_buffer(110,5,false,"Eric");
 
         Fill fills[16];
         int64_t fill_count, order_id, remaining_qty;
         bool fulfilled;
-        while (!gateways[0]->read_from_ring_buffer(fills, fill_count, order_id, fulfilled, remaining_qty)) {}
+        //while (!gateways[0]->read_from_ring_buffer(fills, fill_count, order_id, fulfilled, remaining_qty)) {}
+        while (!gateways[1]->read_from_ring_buffer(fills, fill_count, order_id, fulfilled, remaining_qty)) {}
 
         std::cout << "Order " << order_id
             << " | fulfilled: " << fulfilled

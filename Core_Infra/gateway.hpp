@@ -18,3 +18,4 @@ public:
     void place_order_to_ring_buffer(int64_t price,int64_t volume, bool side, std::string username);
 };
 
+int64_t getCurrentTime();
