@@ -6,8 +6,11 @@
 #include <thread>
 #include "orderbook.hpp"
 
+enum class Op : uint8_t { NEW = 0, CANCEL = 1 };
+
 // 64 bytes
 struct alignas(64) Orderevent_inbound{
+    Op op = Op::NEW;            // distinguishes new orders from cancels
     int64_t price = 0;
     bool side = true;
     int64_t volume = 0;

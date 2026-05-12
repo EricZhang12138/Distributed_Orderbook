@@ -1,4 +1,5 @@
 #include "gateway.hpp"
+#include <cassert>
 //         Gateway Thread                 Matching Engine Thread                                                                                                                      
 //  ──────────────────────────────    ──────────────────────────────                                                                                                            
 //  claim()  → slot = 5                                                                                                                                                           
@@ -20,22 +21,53 @@ int64_t getCurrentTime() {
     return std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
 }
 
-Gateway::Gateway(RingBuffer_inbound* buffer, RingBuffer_outbound* buffer_outbound,int64_t id): ring_buffer_internal(buffer), ring_buffer_outbound(buffer_outbound),gateway_id(id){};
+Gateway::Gateway(RingBuffer_inbound* buffer, RingBuffer_outbound* buffer_outbound, int64_t id, GatewayMode m)
+    : ring_buffer_internal(buffer), ring_buffer_outbound(buffer_outbound), gateway_id(id), mode(m) {}
 
-void Gateway::place_order_to_ring_buffer(int64_t price, int64_t volume, bool side, std::string username){
-    // increment the count for internal_id_counter
-    int64_t my_id = internal_id_counter.fetch_add(1, std::memory_order_relaxed); 
-    int64_t write_pointer = ring_buffer_internal ->claim();
-    Orderevent_inbound* ord_event = ring_buffer_internal -> get(write_pointer);
-    //update the orderevent with the current order
-    ord_event -> internal_order_id = my_id;
-    ord_event -> price = price;
-    ord_event -> volume = volume;
-    ord_event -> order_arrival_time = getCurrentTime();
-    ord_event ->side = side;
-    ord_event ->gateway_id = gateway_id;
-    // publish to notify that we are ready 
-    ring_buffer_internal -> publish(write_pointer);
+int64_t Gateway::place_order_to_ring_buffer(int64_t price, int64_t volume, bool side, std::string username,
+                                            int64_t external_id, int64_t external_ts){
+    int64_t order_id;
+    int64_t arrival_ts;
+    if (mode == GatewayMode::LIVE){
+        // mint id + stamp wall-clock; ignore external args
+        order_id = internal_id_counter.fetch_add(1, std::memory_order_relaxed);
+        arrival_ts = getCurrentTime();
+    } else { // REPLAY
+        assert(external_id >= 0 && "REPLAY gateway requires a non-negative external_id");
+        assert(external_ts >= 0 && "REPLAY gateway requires a non-negative external_ts");
+        order_id = external_id;
+        arrival_ts = external_ts;
+    }
+
+    int64_t write_pointer = ring_buffer_internal->claim();
+    Orderevent_inbound* ord_event = ring_buffer_internal->get(write_pointer);
+    ord_event->op = Op::NEW;
+    ord_event->internal_order_id = order_id;
+    ord_event->price = price;
+    ord_event->volume = volume;
+    ord_event->order_arrival_time = arrival_ts;
+    ord_event->side = side;
+    ord_event->gateway_id = gateway_id;
+    ring_buffer_internal->publish(write_pointer);
+    return order_id; // caller can later cancel by this id
+}
+
+void Gateway::cancel_order_to_ring_buffer(int64_t order_id, int64_t external_ts){
+    int64_t ts;
+    if (mode == GatewayMode::LIVE){
+        ts = getCurrentTime();
+    } else { // REPLAY
+        assert(external_ts >= 0 && "REPLAY gateway requires a non-negative external_ts");
+        ts = external_ts;
+    }
+    int64_t write_pointer = ring_buffer_internal->claim();
+    Orderevent_inbound* ord_event = ring_buffer_internal->get(write_pointer);
+    ord_event->op = Op::CANCEL;
+    ord_event->internal_order_id = order_id;
+    ord_event->gateway_id = gateway_id;
+    ord_event->order_arrival_time = ts;
+    // price/volume/side unused for CANCEL
+    ring_buffer_internal->publish(write_pointer);
 }
 
 bool Gateway::read_from_ring_buffer(Fill* fills, int64_t& fill_count, int64_t& order_id, bool& fulfilled, int64_t& remaining_qty){

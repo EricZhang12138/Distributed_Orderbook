@@ -6,7 +6,7 @@
 #include <memory>
 
 int main() {
-    int num_gateways = 3;
+    int num_gateways = 4; // 0..2 LIVE, 3 REPLAY
 
     RingBuffer_inbound inbound(1024);
 
@@ -20,10 +20,11 @@ int main() {
 
     MatchingEngine engine(&inbound, outbound_ptrs);
 
-    // create gateways 
+    // create gateways: 0..2 LIVE, 3 REPLAY
     std::vector<std::unique_ptr<Gateway>> gateways;
-    for (int i = 0; i < num_gateways; i++) // i is gateway id
-        gateways.push_back(std::make_unique<Gateway>(&inbound, outbounds[i].get(), i));
+    for (int i = 0; i < num_gateways - 1; i++)
+        gateways.push_back(std::make_unique<Gateway>(&inbound, outbounds[i].get(), i, GatewayMode::LIVE));
+    gateways.push_back(std::make_unique<Gateway>(&inbound, outbounds[num_gateways - 1].get(), num_gateways - 1, GatewayMode::REPLAY));
 
     std::thread engine_thread([&]{ engine.run(); });
     engine_thread.detach();
@@ -54,6 +55,42 @@ int main() {
             std::cout << "  fill " << i << ": price=" << fills[i].price
                 << " vol=" << fills[i].volume << "\n";
         }
+
+        // --- Cancel round-trip test ---
+        // Place a resting order that won't match (bid at 90, no asks <= 90), then cancel it.
+        int64_t resting_id = gateways[2]->place_order_to_ring_buffer(90, 7, false, "carol");
+        while (!gateways[2]->read_from_ring_buffer(fills, fill_count, order_id, fulfilled, remaining_qty)) {}
+        std::cout << "Placed resting order id=" << resting_id
+                  << " ack: fulfilled=" << fulfilled << " remaining=" << remaining_qty << "\n";
+
+        gateways[2]->cancel_order_to_ring_buffer(resting_id);
+        while (!gateways[2]->read_from_ring_buffer(fills, fill_count, order_id, fulfilled, remaining_qty)) {}
+        std::cout << "Cancel ack for id=" << order_id
+                  << " | success=" << fulfilled
+                  << " | fill_count=" << fill_count << "\n";
+
+        // Second cancel of the same id should fail (success=0).
+        gateways[2]->cancel_order_to_ring_buffer(resting_id);
+        while (!gateways[2]->read_from_ring_buffer(fills, fill_count, order_id, fulfilled, remaining_qty)) {}
+        std::cout << "Re-cancel ack for id=" << order_id
+                  << " | success=" << fulfilled << " (expected 0)\n";
+    });
+
+    // --- REPLAY-mode demo on gateway 3 ---
+    gateway_threads.emplace_back([&]{
+        // External id 88421, external timestamp 1700000000000000000 (arbitrary ns).
+        int64_t returned = gateways[3]->place_order_to_ring_buffer(95, 4, false, "feed", 88421, 1700000000000000000LL);
+        std::cout << "REPLAY place: returned id=" << returned << " (expected 88421)\n";
+
+        Fill rfills[16];
+        int64_t rfc, roid, rrq;
+        bool rok;
+        while (!gateways[3]->read_from_ring_buffer(rfills, rfc, roid, rok, rrq)) {}
+        std::cout << "REPLAY place ack: id=" << roid << " fulfilled=" << rok << " remaining=" << rrq << "\n";
+
+        gateways[3]->cancel_order_to_ring_buffer(88421, 1700000000001000000LL);
+        while (!gateways[3]->read_from_ring_buffer(rfills, rfc, roid, rok, rrq)) {}
+        std::cout << "REPLAY cancel ack: id=" << roid << " success=" << rok << "\n";
     });
     for (auto& t : gateway_threads) t.join();
 }
