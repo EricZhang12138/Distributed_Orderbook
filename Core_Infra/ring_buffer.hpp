@@ -6,7 +6,7 @@
 #include <thread>
 #include "orderbook.hpp"
 
-enum class Op : uint8_t { NEW = 0, CANCEL = 1 };
+enum class Op : uint8_t { NEW = 0, CANCEL = 1, MODIFY = 2 };
 
 // 64 bytes
 struct alignas(64) Orderevent_inbound{
@@ -17,6 +17,7 @@ struct alignas(64) Orderevent_inbound{
     int64_t order_arrival_time = 0;
     int64_t internal_order_id = 0;
     int64_t gateway_id = 0;
+    bool silent = false;        // if true, engine skips the outbound ack write for this event
     // is_ready is basically used to signal to the engine that this orderevent is ready for you to process
     std::atomic<bool> is_ready{false};   // this needs to be atomic because the matching engine and the gateway may access it at the same time
 };
@@ -36,10 +37,11 @@ struct RingBuffer_inbound{
 };
 
 
-struct alignas(64) Orderevent_outbound{                                                                                                                                                                     
+struct alignas(64) Orderevent_outbound{
+      Op op = Op::NEW;           // which op produced this ack — disambiguates the meaning of `fulfilled`
       int64_t order_id = 0;
       int64_t gateway_id = 0;
-      bool fulfilled = false;
+      bool fulfilled = false;    // NEW: fully filled? CANCEL/MODIFY: succeeded?
       int64_t remaining_qty = 0;
       Fill fills[16]; // 16 fills max each time
       int64_t fill_count = 0;

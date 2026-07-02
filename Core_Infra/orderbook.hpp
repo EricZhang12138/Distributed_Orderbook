@@ -59,6 +59,8 @@ private:
 public:
     std::pair<orderResult,int64_t> placeOrder(int64_t price, int64_t volume, bool side, int64_t time, int64_t order_id, int64_t gateway_id); // returns the id of the order
     bool cancel(int64_t order_id);
+    // In-place size reduction. Returns true only when 0 < new_size < current volume; the order keeps its queue position.
+    bool modify(int64_t order_id, int64_t new_size);
 };
 
 

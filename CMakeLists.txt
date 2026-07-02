@@ -10,6 +10,8 @@ add_library(orderbook_core
     Core_Infra/ring_buffer.cpp
     Core_Infra/matching_engine.cpp
     Core_Infra/gateway.cpp
+    Core_Infra/gateway_reader.cpp
+    Core_Infra/lobster_replay_adapter.cpp
 )
 target_include_directories(orderbook_core PUBLIC Core_Infra)
 
@@ -18,6 +20,9 @@ target_link_libraries(orderbook_core PUBLIC Threads::Threads)
 
 add_executable(orderbook main.cpp)
 target_link_libraries(orderbook PRIVATE orderbook_core)
+
+add_executable(orderbook_replay main_replay.cpp)
+target_link_libraries(orderbook_replay PRIVATE orderbook_core)
 
 # ---------- tests ----------
 enable_testing()
@@ -37,6 +42,9 @@ add_executable(orderbook_tests
     tests/ring_buffer_test.cpp
     tests/gateway_test.cpp
     tests/end_to_end_test.cpp
+    tests/spsc_queue_test.cpp
+    tests/gateway_reader_test.cpp
+    tests/lobster_replay_adapter_test.cpp
 )
 target_link_libraries(orderbook_tests PRIVATE orderbook_core GTest::gtest_main)
 

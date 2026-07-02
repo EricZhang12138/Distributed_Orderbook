@@ -24,7 +24,8 @@ int main() {
     std::vector<std::unique_ptr<Gateway>> gateways;
     for (int i = 0; i < num_gateways - 1; i++)
         gateways.push_back(std::make_unique<Gateway>(&inbound, outbounds[i].get(), i, GatewayMode::LIVE));
-    gateways.push_back(std::make_unique<Gateway>(&inbound, outbounds[num_gateways - 1].get(), num_gateways - 1, GatewayMode::REPLAY));
+    // REPLAY gateway with silent=false: the demo wants to observe acks (overrides the new REPLAY→silent default).
+    gateways.push_back(std::make_unique<Gateway>(&inbound, outbounds[num_gateways - 1].get(), num_gateways - 1, GatewayMode::REPLAY, /*silent_override=*/false));
 
     std::thread engine_thread([&]{ engine.run(); });
     engine_thread.detach();
@@ -76,10 +77,10 @@ int main() {
                   << " | success=" << fulfilled << " (expected 0)\n";
     });
 
-    // --- REPLAY-mode demo on gateway 3 ---
+    // --- REPLAY-mode demo on gateway 3: place, modify, cancel ---
     gateway_threads.emplace_back([&]{
         // External id 88421, external timestamp 1700000000000000000 (arbitrary ns).
-        int64_t returned = gateways[3]->place_order_to_ring_buffer(95, 4, false, "feed", 88421, 1700000000000000000LL);
+        int64_t returned = gateways[3]->place_order_to_ring_buffer(95, 10, false, "feed", 88421, 1700000000000000000LL);
         std::cout << "REPLAY place: returned id=" << returned << " (expected 88421)\n";
 
         Fill rfills[16];
@@ -87,6 +88,16 @@ int main() {
         bool rok;
         while (!gateways[3]->read_from_ring_buffer(rfills, rfc, roid, rok, rrq)) {}
         std::cout << "REPLAY place ack: id=" << roid << " fulfilled=" << rok << " remaining=" << rrq << "\n";
+
+        // Modify the resting order from 10 down to 6.
+        gateways[3]->modify_order_to_ring_buffer(88421, 6, 1700000000000500000LL);
+        while (!gateways[3]->read_from_ring_buffer(rfills, rfc, roid, rok, rrq)) {}
+        std::cout << "REPLAY modify ack: id=" << roid << " success=" << rok << " (expected 1)\n";
+
+        // Try an invalid modify: size-up should fail.
+        gateways[3]->modify_order_to_ring_buffer(88421, 100, 1700000000000600000LL);
+        while (!gateways[3]->read_from_ring_buffer(rfills, rfc, roid, rok, rrq)) {}
+        std::cout << "REPLAY modify-up ack: id=" << roid << " success=" << rok << " (expected 0)\n";
 
         gateways[3]->cancel_order_to_ring_buffer(88421, 1700000000001000000LL);
         while (!gateways[3]->read_from_ring_buffer(rfills, rfc, roid, rok, rrq)) {}

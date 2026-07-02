@@ -125,6 +125,49 @@ Key correctness points:
 - An empty `Limit` (count = 0) is erased from the tree to avoid stale entries and to keep `rbegin()` / `begin()` meaningful.
 - If the order doesn't fully cross, the remainder is inserted into its own side; `global_map` is updated so it can be cancelled later.
 
+## `modify` walk-through
+
+`modify(order_id, new_size)` reduces an existing order's volume in place. The order keeps its position in the doubly-linked list at its price level, so its **queue priority is preserved**.
+
+```
+modify(orderID, new_size):
+    it = global_map.find(orderID)
+    if not found: return false
+
+    order = *it
+    if new_size <= 0:                       return false  // use cancel for size→0
+    if new_size >= order.volume:            return false  // no size-up via modify
+
+    delta = order.volume - new_size
+    order.volume = new_size
+    order.parentlimit.totalVolume -= delta
+    return true
+```
+
+That is the entire implementation. Notice what it does **not** touch:
+
+- `prev` / `next` — the order stays at the same point in the list.
+- `parentlimit->count` — there are still the same number of orders at this price.
+- `global_map` — the id-to-pointer mapping is unchanged.
+- The two trees (`bids`/`asks`) — no Limit is added or removed.
+
+### Why this matters (and why "cancel + new" is wrong)
+
+A naive size reduction would `cancel(order_id)` and then `placeOrder(price, new_size, ...)`. The book's numbers (count, totalVolume, top-of-book) end up identical to the in-place modify. But:
+
+- Cancel + new puts the order at the **tail** of the queue at its price.
+- If any other order arrived at the same price between the cancel and the new, that order is now ahead of you.
+- Even if no such order arrived, your timestamp is "now" rather than the original arrival time — fairness arguments downstream may differ.
+
+For data replay (LOBSTER type 2 messages), losing queue priority means your matcher's fills will diverge from reality within minutes on a liquid stock. Hence the in-place implementation.
+
+### What MODIFY does *not* support
+
+- **Size up.** Increasing volume is structurally different — it would let a stale order jump ahead of orders that queued behind it. Real exchanges implement size-up as cancel + new at the back of the queue. NASDAQ (and therefore LOBSTER) emits this as a type-3 followed by a type-1, so you never need a "modify-up" path.
+- **Price change.** Same reason as size-up: an order at a new price has no natural queue position to inherit. LOBSTER decomposes price changes into type-3 + type-1.
+
+So in practice MODIFY = strict size-down only. The two `return false` checks in the implementation enforce that contract.
+
 ## `cancel` walk-through
 
 ```

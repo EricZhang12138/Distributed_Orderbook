@@ -228,3 +228,20 @@ std::pair<orderResult,int64_t> Orderbook::placeOrder(int64_t price, int64_t volu
     return {res, gateway_id};
 }
 
+
+// In-place size reduction. Preserves queue position (does not touch prev/next).
+// Returns false when the order does not exist, or when new_size is not a valid
+// strict reduction (0 < new_size < current volume).
+bool Orderbook::modify(int64_t order_id, int64_t new_size){
+    auto it = global_map.find(order_id);
+    if (it == global_map.end()) return false;          // unknown id
+    Order* order = it->second;
+    if (new_size <= 0) return false;                   // size→0 should be a cancel
+    if (new_size >= order->volume) return false;       // no size-up via modify
+
+    int64_t delta = order->volume - new_size;
+    order->volume = new_size;
+    order->parentlimit->totalVolume -= delta;
+    return true;
+}
+

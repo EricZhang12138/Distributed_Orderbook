@@ -27,6 +27,7 @@ Owns:
 - A reference to *its own* outbound ring buffer.
 - A `gateway_id` used to route acks back to it.
 - A `GatewayMode` (LIVE or REPLAY) — see `04_gateway.md`.
+- A `silent` flag — separate from `GatewayMode`, controls whether the engine writes outbound acks for events stamped by this gateway. Defaults to `false` for LIVE, `true` for REPLAY. See `04_gateway.md` "Silent flag" section.
 
 Public methods:
 - `place_order_to_ring_buffer(...)` — push a `NEW` event onto the inbound buffer.
@@ -49,6 +50,7 @@ The single consumer of the inbound buffer. Runs an infinite loop:
 2. If `is_ready`, dispatch on `event->op`:
    - `NEW` → `orderbook.placeOrder(...)`
    - `CANCEL` → `orderbook.cancel(...)`
+   - `MODIFY` → `orderbook.modify(internal_order_id, volume)` — `volume` carries the new size
 3. Write the result into the outbound buffer for `event->gateway_id`.
 4. Release the inbound slot and advance.
 
@@ -89,8 +91,7 @@ The trade-off: the engine spins at 100% CPU. That is intentional for low-latency
 ## What the system does **not** do today
 
 - Multi-symbol support (one `Orderbook` instance only).
-- Ring-buffer backpressure (a fast producer can wrap the buffer and overwrite unread slots).
-- `MODIFY` op-code (only `NEW` and `CANCEL`).
+- Outbound-side backpressure (inbound is fixed; engine can still overwrite slow gateways' unread acks).
 - Persistence / recovery.
 - Network I/O — gateways are in-process.
 
